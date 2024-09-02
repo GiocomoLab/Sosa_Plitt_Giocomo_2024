@@ -1,2 +1,2 @@
-# Sosa_Plitt_Giocomo_2024
-Code for analyses and figures in Sosa et al. 2024
+# Sosa_et_al_2024
+Code for analyses and figures in Sosa, Plitt, Giocomo 2024
