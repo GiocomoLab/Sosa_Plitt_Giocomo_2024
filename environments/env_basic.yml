@@ -1,0 +1,28 @@
+name: InVivoDA
+channels:
+  - defaults
+  - anaconda
+  - conda-forge
+
+dependencies:
+  - dill>=0.3
+  - h5py>=2.10.0
+  - python=3.8
+  - jupyter
+  - jupyterlab
+  - matplotlib
+  - numba
+  - numpy>=1.19
+  - numba>=0.43.1
+  - pandas
+  - pip
+  - scikit-learn>=1.0
+  - scipy>=1.7
+  - sqlite
+  - statsmodels
+  - tensorflow=2.13
+  - pip:
+    - "--editable=/home/mari/local_repos/2P_repos/TwoPUtils/"
+    - "--editable=/home/mari/local_repos/2P_repos/suite2p/"
+    - -e .
+
