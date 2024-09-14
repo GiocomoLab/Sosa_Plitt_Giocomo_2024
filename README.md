@@ -1,6 +1,7 @@
 # Sosa_et_al_2024
 Code for analyses and figures in Sosa, Plitt, Giocomo 2024
 
+[System requirements](#System-Requirements)  \
 [Environments](#Environment-set-up)  \
 [Pip install repo dependencies](#Pip-install-dependencies)  \
 [Path dictionary](#Path-dictionary)  \
@@ -42,38 +43,49 @@ If creating a conda env from these yamls doesn't work (it may not work on differ
 
 ```bash
 conda env create --name <envname> python=3.8.5
-conda install h5py=2.10.0 numpy=1.19.2 numba=0.51.2
-conda install scipy=1.5.2 pandas=1.1.3
+conda install h5py=2.10.0 numpy=1.22.5 numba=0.51.2
+conda install scipy=1.7.3 pandas=1.1.3
 conda install <anotherpackage>
 ```
 
 Do a few packages at a time, in case they throw errors.
 
-### Pip install dependencies
+### Clone this repository
+```bash
+git clone https://github.com/GiocomoLab/Sosa_et_al_2024.git
+```
 
-Mark Plitt wrote preprocessing code in GiocomoLab/TwoPUtils, which we use for preprocessing here. Let's pip install!
+### Clone and pip install dependencies
 
-1. Clone the other repos if you haven't already, outside of InVivoDA_analyses:
+Several other open-source code packages and repositories are called for specific analyses. Git clone each of them locally.
+
+Preprocessing code by Mark Plitt: [TwoPUtils](https://github.com/GiocomoLab/TwoPUtils)  \
+[Suite2p](https://github.com/MouseLand/suite2p)
+
+
+1. Clone the other repos if you haven't already:
 ```bash
 git clone https://github.com/GiocomoLab/TwoPUtils.git
 git clone https://github.com/MouseLand/suite2p
 ```
-[More on suite2p installation](https://suite2p.readthedocs.io/en/latest/installation.html)
+etc.
+
 
 2. Activate your environment
 ```bash
 conda activate <envname>
 ```
 
-3. Pip install each repo as a package. If all the repos live in one parent directory, it would look like this:
+3. Pip install at least TwoPUtils and suite2p as packages. If all the repos live in one parent directory, it would look like this:
 ```bash
-cd InVivoDA_analyses
+cd Sosa_et_al_2024
 pip install -e .
 cd ../TwoPUtils
 pip install -e .
 cd ../suite2p
 pip install .
 ```
+The other repos will be added to your sys path in specific analyses, or you can pip install them if you prefer (I didn't pip install them in case there were any package conflicts).
 
 When importing packages into your code, if you get an error like `ModuleNotFoundError: No module named 'PyQt5.sip'`, try the following:
 ```bash
