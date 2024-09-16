@@ -29,11 +29,11 @@ def define_anim_list(experiment, exp_day, year=2023):
         if year==2023:
             if exp_day in [1, 2]:
                 an_list = ['GCAMP2', 'GCAMP3', 'GCAMP4', 'GCAMP5',
-                           'GCAMP6', 'GCAMP7',  
+                           'GCAMP6', 'GCAMP7',
                            'GCAMP10', 'GCAMP12', 'GCAMP13', 'GCAMP14']
             elif exp_day == 3:
                 an_list = ['GCAMP2', 'GCAMP3', 'GCAMP4', 'GCAMP5',
-                           'GCAMP6', 'GCAMP7', 
+                           'GCAMP6', 'GCAMP7',
                            'GCAMP10', 'GCAMP11', 'GCAMP12', 'GCAMP13', 'GCAMP14']
 
             elif (exp_day > 3) and (exp_day <= 14):
@@ -66,11 +66,8 @@ def define_anim_list(experiment, exp_day, year=2023):
                            'GCAMP15', 'GCAMP17', 'GCAMP18', 'GCAMP19']
             else:
                 raise NotImplementedError("Animal list not defined for this day")
-            
-
     else:
-        raise NotImplementedError("Experiment metadata not defined")
-    
+        raise NotImplementedError("Experiment name not defined")
 
     return np.asarray(an_list)
 
@@ -94,7 +91,6 @@ def define_block_by(experiment, exp_day, an):
                 def_block_by = 'reward_zone'
             elif exp_day in [1, 2, 4, 6, 9, 11, 13]:
                 def_block_by = None
-
 
     return def_block_by
 
@@ -187,15 +183,9 @@ class dayData:
         self.exclude_int = True
         self.int_thresh = 0.5
         self.int_method = 'speed'
-        self.exclude_end_cells = False
-        self.exclude_reward_cells = False
-        self.exclude_not_reward_cells = False
-        self.exclude_track_cells = False
         self.reward_dist_exclusive = 50
         self.reward_dist_inclusive = 50
         self.reward_overrep_dist = 25
-        self.stability_threshold = None
-        self.stability_method='mean'  # 'mean' or 'consecutive'
         self.activity_criterion = False
         self.bin_size = 10  # for quantifying distribution of place field peak locations
         self.sigma = 1  # for smoothing
@@ -235,11 +225,8 @@ class dayData:
         self.SI = dict(
             [(an, {'set 0': {}, 'set 1': {}}) for an in an_list])
         self.overall_place_cell_masks = dict([(an, {}) for an in an_list])
-        self.place_cell_trial_to_trial_stability = dict(
-            [(an, {}) for an in an_list])
-        self.stability_masks = dict([(an, {}) for an in an_list])
-        # Find the cells maximal activity position for each trial set
-        # self.peaks_sess = {}
+
+        # # Find the cells maximal activity position for each trial set
         self.peaks = dict([(an, {'set 0': {}, 'set 1': {}})
                            for an in an_list])
         self.field_dict = dict([(an, {}) for an in an_list])
@@ -249,7 +236,6 @@ class dayData:
         self.is_reward_cell = {}
         self.is_end_cell = {}
         self.is_track_cell = {}
-        self.keep_masks = {}
 
         # place field peak distribution in each block and for each trial set
         self.pc_distr = dict(
@@ -299,12 +285,10 @@ class dayData:
         self.dist_btwn_rel_null = dict([(an, {}) for an in self.anim_list])
         # relative peaks relative to each other, across trials sets
         self.dist_btwn_rel_peaks = dict([(an, {}) for an in self.anim_list])
-        # self.frac_above_shuffle = dict([(an, {}) for an in self.anim_list])
         # kept cells with both rel fields within a certain dist from reward
-        # self.dist_along_unity_inds = dict([(an, {}) for an in self.anim_list])
         self.reward_rel_cell_ids = dict([(an, {}) for an in self.anim_list])
         self.xcorr_above_shuf = dict([(an, {}) for an in self.anim_list])
-        # distance of relative peaks along unity line (once projected to unity line)
+        # mean distance of relative peaks along unity line
         self.reward_rel_dist_along_unity = dict([(an, {}) for an in self.anim_list])
         # peaks relative to start of reward zone, in radians
         self.rel_peaks = dict(
@@ -312,9 +296,6 @@ class dayData:
         # shuffle relative to start of reward zone
         self.rel_null = dict(
             [(an, {'set 0': {}, 'set 1': {}}) for an in self.anim_list])
-        # root-squared phase difference to unity line (between relative peaks)
-        self.rel_RSE = dict([(an, {}) for an in self.anim_list])
-        self.rel_RSE_null = dict([(an, {}) for an in self.anim_list])
         # lick positions in circular coordinates (trial matrix)
         self.circ_licks = dict(
             [(an, {'set 0': {}, 'set 1': {}}) for an in self.anim_list])
@@ -326,6 +307,14 @@ class dayData:
             [(an, {'set 0': {}, 'set 1': {}}) for an in self.anim_list])
         # full trial matrix in circular coordinates
         self.circ_trial_matrix = dict([(an, {}) for an in self.anim_list])
+        self.circ_rel_stats_across_an = {'include_ans': [],
+                                         'rdist_to_rad_inc': [],
+                                         'rdist_to_rad_exc': [],
+                                         'min_pos': [],
+                                         'max_pos': [],
+                                         'hist_bin_centers': [],
+                                         
+                                         }
 
         # ---- Add the basics ----
         for an in an_list:
@@ -430,6 +419,11 @@ class dayData:
                                  field_thr=0.2,
                                  n_std=2,
                                  **kwargs):
+        
+        """
+        Option to limit the set of included place cells to those which are active
+        above a threshold in their place fields on a minimum percentage of trials
+        """
 
         active_masks = {'set 0': [],
                         'set 1': []
@@ -456,6 +450,7 @@ class dayData:
                                                          )
         print("%d active pcs" % np.logical_or(
             self.place_cell_masks[an]['set 0'], self.place_cell_masks[an]['set 1']).sum())
+        
 
     def add_activity_matrix(self, an, multi_an_sess, use_speed_thr=False, speed_thr=2,
                             ts_key = 'dff', **kwargs):
@@ -537,6 +532,7 @@ class dayData:
                 raise NotImplementedError("Ints have not been calculated.")
             keep_masks = np.multiply(keep_masks, ~self.is_int[an])
 
+        # All "or" place cells excluding putative interneurons
         self.overall_place_cell_masks[an] = keep_masks
 
         if len(self.peaks[an]['set 0']) == 0:
@@ -554,12 +550,6 @@ class dayData:
         )
         self.is_end_cell[an] = end_cells
 
-        if self.exclude_end_cells:
-            if self.exclude_end_cells:
-                print('excluding end cells', sum(
-                    end_cells*1)/len(self.peaks[an]['set 0']))
-                keep_masks = np.multiply(keep_masks, ~end_cells)
-
         # "Reward cells": peaks within 50 cm of both reward zone starts
         # use unsmoothed peak data
         reward_cells = spatial.find_reward_cells(self.peaks[an]['set 0'],
@@ -570,19 +560,7 @@ class dayData:
 
         self.is_reward_cell[an] = reward_cells
 
-        if self.exclude_reward_cells or self.exclude_not_reward_cells:
-            if self.exclude_reward_cells:
-                print('excluding reward cells', sum(
-                    reward_cells*1)/len(self.peaks[an]['set 0']))
-                keep_masks = np.multiply(keep_masks, ~reward_cells)
-            elif self.exclude_not_reward_cells:
-                print('keeping only reward cells', sum(
-                    reward_cells*1)/len(self.peaks[an]['set 0']))
-                keep_masks = np.multiply(keep_masks, reward_cells)
-
-            print(f'{keep_masks.sum()} cells remaining')
-
-        # Stable cells: peaks within 50 cm of each other from set 0 to set 1,
+        # "Track" cells: peaks within 50 cm of each other from set 0 to set 1,
         # [must also have significant spatial info in both sets]
         # excludes any that could also be counted as reward cells (useful for non-switch days)
         track_cells = spatial.find_track_cells(self.peaks[an]['set 0'],
@@ -592,32 +570,7 @@ class dayData:
                                                  dist=self.reward_dist_exclusive)
 
         self.is_track_cell[an] = track_cells
-
-        if self.exclude_track_cells:
-            keep_masks = np.multiply(keep_masks, ~track_cells)
-
-        if self.stability_threshold is not None:
-            trial_mat = np.copy(
-                multi_an_sess[an]['sess'].trial_matrices['events'][0])
-            trial_dict = self.trial_dict[an]
-
-            trial_corr, stability_masks = spatial.pairwise_stability(trial_mat, trial_dict,
-                                                                     r_thr=self.stability_threshold,
-                                                                     method=self.stability_method)
-
-            self.place_cell_trial_to_trial_stability[an] = trial_corr
-            self.stability_masks[an] = stability_masks
-
-            # keep place cells with consecutive stability > thresh in either set
-            combine_masks = np.logical_or(
-                np.logical_and(multi_an_sess[an]["pc masks set0"],
-                               stability_masks['set 0']),
-                np.logical_and(multi_an_sess[an]["pc masks set1"],
-                               stability_masks['set 1'])
-            )
-            keep_masks = np.multiply(keep_masks, combine_masks)
-
-        self.keep_masks[an] = keep_masks
+        
 
     def get_cell_classes(self, multi_an_sess, inc_dist=50, ts_key='dff'):
 
@@ -659,7 +612,7 @@ class dayData:
         ### Get trial x trial similarity ###
         # use events here for population vector corr
         activity_mat = np.copy(
-            multi_an_sess[an]['sess'].trial_matrices['events'][0][:, :, self.keep_masks[an]])
+            multi_an_sess[an]['sess'].trial_matrices['events'][0][:, :, self.overall_place_cell_masks[an]])
         lick_mat = np.copy(
             multi_an_sess[an]['sess'].trial_matrices['licks'][0])
         speed_mat = np.copy(
@@ -698,7 +651,7 @@ class dayData:
             raise NotImplementedError(
                 "Activity matrix has not been calculated.")
         activity_mat = np.copy(
-            self.activity_matrix[an][:, :, self.keep_masks[an]])
+            self.activity_matrix[an][:, :, self.overall_place_cell_masks[an]])
 
         if smooth:
             activity_mat = ut.nansmooth(
@@ -854,15 +807,15 @@ class dayData:
 
     def add_field_dict(self, an, multi_an_sess, field_ts_key='events', **kwargs):
 
-        field_dict = {"included cells": np.where(self.keep_masks[an])[0],
+        field_dict = {"included cells": np.where(self.overall_place_cell_masks[an])[0],
                       'ts_key': field_ts_key,
                       'set 0': {}, 'set 1': {}}
         pos = self.pos_bin_centers[an]
         activity_map = {}
         for key in ['0', '1']:
             field_dict['set ' + key] = {
-                "field COM": np.zeros((self.keep_masks[an].sum(),))*np.nan,
-                "field number": np.zeros((self.keep_masks[an].sum(),))*np.nan,
+                "field COM": np.zeros((self.overall_place_cell_masks[an].sum(),))*np.nan,
+                "field number": np.zeros((self.overall_place_cell_masks[an].sum(),))*np.nan,
                 "field widths": {},
                 "field pos": {},
             }
@@ -987,8 +940,6 @@ class dayData:
             keep_masks = np.copy(self.overall_place_cell_masks[an])
 
             use_tm = circ_tm[0]
-            # if self.smooth:
-            #     use_tm = ut.nansmooth(use_tm, self.sigma, axis=1)
 
             # keep a copy of the circular trial matrix with all the cells
             self.circ_trial_matrix[an] = circ_tm
@@ -1042,20 +993,8 @@ class dayData:
                 self.circ_map[an]['set 1'], axis=0),
                 circ_tm[-1], axis=0)
 
-            # exclude "reward" and "stable" cells using their original linear peaks (agnostic to
-            # spatial information) to avoid rounding errors at the exclude_dist boundary when
-            # converting to radians
 
-            if self.exclude_reward_cells:
-   
-                keep_masks = np.multiply(keep_masks, ~self.is_reward_cell[an])
-
-            if self.exclude_track_cells:
-
-                keep_masks = np.multiply(keep_masks, ~self.is_track_cell[an])
-                print(f'{keep_masks.sum()} cells remaining in circ')
-
-            self.keep_masks[an] = keep_masks
+            # self.keep_masks[an] = keep_masks
 
             circ_peaks_0 = circ_peaks_0[keep_masks]
             circ_peaks_1 = circ_peaks_1[keep_masks]
@@ -1097,15 +1036,6 @@ class dayData:
                                                                       bin_size=circ_bin_size,
                                                                       n_perm=n_perm)
 
-            # root-squared phase difference
-            self.rel_RSE[an] = _phase_RSE(rel_peaks1, rel_peaks0)
-            self.rel_RSE_null[an] = np.zeros((len(rel_peaks1), n_perm))
-            for c in range(len(rel_peaks1)):
-
-                self.rel_RSE_null[an][c, :] = _phase_RSE(rel_null[:, c],
-                                                         np.repeat(
-                                                             rel_peaks0[c], n_perm)
-                                                         )
 
             self.rel_peaks[an]['set 0'] = rel_peaks0
             self.rel_peaks[an]['set 1'] = rel_peaks1
@@ -1155,7 +1085,7 @@ class dayData:
         n_place_cells = np.sum(
             [np.sum(self.overall_place_cell_masks[an]) for an in include_ans])
        
-        self.circ_rel_info_switch_an = {'include_ans': include_ans,
+        self.circ_rel_stats_across_an = {'include_ans': include_ans,
                                          'rdist_to_rad_inc': rdist_to_rad_inc,
                                          'rdist_to_rad_exc': rdist_to_rad_exc,
                                          'min_pos': min_pos,
@@ -1171,7 +1101,7 @@ class dayData:
                                    use_and_cells=False,
                                    ):
         """
-        Filter place cell IDs to remove stable, putative reward, and/or end cells posthoc
+        Filter place cell IDs to remove putative track-relative, putative reward, and/or end cells posthoc
         :return: bool_to_include - boolean of size self.overall_place_cell_masks[an].sum()
         """
 
@@ -1294,13 +1224,6 @@ def _frac_hist_above_shuf(hist_relrel_peaks, hist_relrel_null, bin_centers, wind
     return frac
 
 
-def _phase_RSE(y, y_hat):
-
-    rse = np.sqrt(circ.phase_diff(y, y_hat) ** 2)
-
-    return rse
-
-
 
 def calc_field_xcorr(trial_mat, trial_dict,
                      rzone0, rzone1,
@@ -1420,9 +1343,6 @@ def dayData_to_df(multiDayData, columns, anim_list=None, manual_dict = None):
     day_list = multiDayData.keys()
     experiment = multiDayData[list(multiDayData.keys())[0]].experiment
 
-    # switch_list =day_list[
-    #     np.where([multiDayData[day].is_switch[an] for day in day_list])[0]
-    # ]
 
     for d_i, day in enumerate(day_list):
         if anim_list is None:
@@ -1525,12 +1445,12 @@ def plot_rew_rel_hist_across_an(multiDayData,
     exp_days = multiDayData.keys()
     if len(exp_days) == 1:
         fig1, ax1 = plt.subplots(
-            len(exp_days)+1, 2, figsize=(5, 1.5*len(exp_days)))
+            len(exp_days)+1, 2, figsize=(8, 1.75*len(exp_days)))
         fig2, ax2 = plt.subplots(
             len(exp_days)+1, 1, figsize=(5, 4*len(exp_days)))
     else:
         fig1, ax1 = plt.subplots(
-            len(exp_days), 2, figsize=(5, 1.5*len(exp_days)))
+            len(exp_days), 2, figsize=(8, 1.75*len(exp_days)))
         fig2, ax2 = plt.subplots(
             len(exp_days), 1, figsize=(5, 4*len(exp_days)))
 
@@ -1542,9 +1462,9 @@ def plot_rew_rel_hist_across_an(multiDayData,
 
     for d_i, day in enumerate(exp_days):
 
-        rdist_to_rad_exc = multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_exc']
-        rdist_to_rad_inc = multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc']
-        include_ans = multiDayData[day].circ_rel_info_switch_an["include_ans"]
+        rdist_to_rad_exc = multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_exc']
+        rdist_to_rad_inc = multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc']
+        include_ans = multiDayData[day].circ_rel_stats_across_an["include_ans"]
 
         # Concatenate relative peaks
         dist_btwn_rel_peaks = {}
@@ -1553,7 +1473,7 @@ def plot_rew_rel_hist_across_an(multiDayData,
         dist_btwn_rel_null = {}
 
 
-        include_ans = multiDayData[day].circ_rel_info_switch_an["include_ans"]
+        include_ans = multiDayData[day].circ_rel_stats_across_an["include_ans"]
 
         # Filter and concatenate relative peaks
 
@@ -1599,6 +1519,7 @@ def plot_rew_rel_hist_across_an(multiDayData,
 
         frac_above_shuf[day] = use_frac_above_shuf
 
+        ax1[d_i, 0].set_title("day %d, switch %d" % (day, d_i), fontsize=10)
         ax1[d_i, 0].plot(bin_centers,
                          np.nanmean(use_hist_rel_dist_null,
                                     axis=0), linewidth=2, color='r')
@@ -1610,17 +1531,16 @@ def plot_rew_rel_hist_across_an(multiDayData,
         hist_rel, _ = pt.histogram(use_rel_dist,
                                    ax=ax1[d_i, 0], bins=bin_edges, plot=True, facecolor='black',
                                    edgecolor='black',
-                                   label="n=%d, \n frac above shuf=%.2f" % (
+                                   label="n=%d" % (
                                        len(
-                                           use_rel_dist),
-                                       use_frac_above_shuf
+                                           use_rel_dist),  
                                    )
                                    )
         
         ## Write histogram to the class, with params:
-        multiDayData[day].circ_rel_info_switch_an['hist_dist_btwn_rel_peaks'] = hist_data
-        multiDayData[day].circ_rel_info_switch_an['hist_null'] = hist_null
-        multiDayData[day].circ_rel_info_switch_an.update({'hist_params': {'exclude_track_cells': exclude_track_cells,
+        multiDayData[day].circ_rel_stats_across_an['hist_dist_btwn_rel_peaks'] = hist_data
+        multiDayData[day].circ_rel_stats_across_an['hist_null'] = hist_null
+        multiDayData[day].circ_rel_stats_across_an.update({'hist_params': {'exclude_track_cells': exclude_track_cells,
                                                                            'exclude_reward_cells':exclude_reward_cells,
                                                                             'exclude_end_cells':exclude_end_cells,
                                                                             'use_and_cells':use_and_cells,
@@ -1653,27 +1573,30 @@ def plot_rew_rel_hist_across_an(multiDayData,
                          edgecolor='orange',
                          alpha=1,
                          # label = "n=%d \n med = %.3f, \n p = %.3e" % (
-                         label="n=%d \n var %.3f, mean %.3f, \n [%.3f, %.3f], \n p = %s" % (
+                         label="n=%d \n var %.3f" % (
             len(use_dist_along_unity),
-            astropy.stats.circstats.circvar(
-                use_dist_along_unity),
+                             astropy.stats.circstats.circvar(
+                use_dist_along_unity)
+            
+        ))
+        ax1[d_i, 1].vlines(cmean, 0,
+                           ax1[d_i, 1].get_ylim()[-1], color='k', linestyle=':',
+                           label= "mean %.3f, \n CI=[%.3f, %.3f], \n nonzero_p = %s" % (
             cmean,
             cmean_lo,
             cmean_hi,
-            cmean_H)
+            cmean_H[0])                   
         )
-        ax1[d_i, 1].vlines(cmean, 0,
-                           ax1[d_i, 1].get_ylim()[-1], color='k', linestyle=':')
 
         ax1[d_i, 1].set_xlabel('dist from joint peak to reward (rad)')
         ax1[d_i, 1].set_ylabel('fraction of cells')
         ax1[d_i, 1].vlines(-rdist_to_rad_exc, 0,
                            ax1[d_i, 1].get_ylim()[-1], color='m', linestyle='--')
         ax1[d_i, 1].vlines(rdist_to_rad_exc, 0,
-                           ax1[d_i, 1].get_ylim()[-1], color='m', linestyle='--')
+                           ax1[d_i, 1].get_ylim()[-1], color='m', linestyle='--', label="±50 cm")
         ax1[d_i, 0].set_xticks([-3, -2, -1, 0, 1, 2, 3])
         ax1[d_i, 1].set_xticks([-3, -2, -1, 0, 1, 2, 3])
-        ax1[d_i, 1].legend()
+        ax1[d_i, 1].legend(loc='upper left', bbox_to_anchor=(1.05, 1.05))
 
         # Scatter - if /50, jitter between -np.pi/100 and np.pi/100
         ax2[d_i].plot([-np.pi, np.pi], [-np.pi, np.pi],
@@ -1685,14 +1608,14 @@ def plot_rew_rel_hist_across_an(multiDayData,
             len(use_rel_peaks_set1
                 )) - 0.5) * (np.pi/50)
 
-        xx = np.arange(-np.pi+multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc'],
+        xx = np.arange(-np.pi+multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc'],
                        np.pi -
-                       multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc'],
+                       multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc'],
                        bin_size)
         y1 = xx + \
-            multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc']
+            multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc']
         y2 = xx - \
-            multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc']
+            multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc']
         ax2[d_i].fill_between(xx,
                               y1,
                               y2,
@@ -1736,6 +1659,7 @@ def plot_rew_rel_hist_across_an(multiDayData,
                              alpha=0.5
                              )
 
+        ax2[d_i].set_title("day %d, switch %d" % (day, d_i), fontsize=10)
         ax2[d_i].vlines(0, -np.pi, np.pi, color='k')
         ax2[d_i].vlines(-rdist_to_rad_exc, -rdist_to_rad_exc,
                         rdist_to_rad_exc, color='m')
@@ -1792,7 +1716,7 @@ def plot_rew_rel_hist_indiv_an(multiDayData,
     exp_days = multiDayData.keys()
     max_include_ans = sorted(
         np.unique(np.concatenate(
-            [multiDayData[d].circ_rel_info_switch_an["include_ans"]
+            [multiDayData[d].circ_rel_stats_across_an["include_ans"]
                 for d in exp_days]
         )), key=len)
 
@@ -1817,7 +1741,7 @@ def plot_rew_rel_hist_indiv_an(multiDayData,
     dist_along_unity = {}
 
     for d_i, day in enumerate(exp_days):
-        rdist_to_rad_exc = multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_exc']
+        rdist_to_rad_exc = multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_exc']
         frac_above_shuf[day] = dict([(an, {}) for an in max_include_ans])
         
         bool_to_include, inds_to_include = multiDayData[day].filter_place_cells_posthoc(
@@ -1875,7 +1799,7 @@ def plot_rew_rel_hist_indiv_an(multiDayData,
                 use_dist_along_unity_inds, use_dist_along_unity = _mean_rel_dist(
                     rel_peaks0[an], 
                     rel_peaks1[an],
-                    multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc'])
+                    multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc'])
 
                 dist_along_unity[day][an] = use_dist_along_unity
 
@@ -1994,8 +1918,8 @@ def subclass(_multiDayData):
             self.cell_class = copy.deepcopy(getattr(_dayData,
                                                     'cell_class'))
 
-            self.circ_rel_info_switch_an = copy.deepcopy(getattr(_dayData,
-                                                                  'circ_rel_info_switch_an'))
+            self.circ_rel_stats_across_an = copy.deepcopy(getattr(_dayData,
+                                                                  'circ_rel_stats_across_an'))
 
             self.overall_place_cell_masks = copy.deepcopy(getattr(_dayData,
                                                                   'overall_place_cell_masks'))
@@ -2011,7 +1935,7 @@ def subclass(_multiDayData):
 
 def get_cell_class_n(_multiDayData, day, an, exclude_rr_from_others=True, verbose=True):
     
-    celltype_list = ['rr','stable', 'disappear', 'appear', 'reward','nonreward_remap']
+    celltype_list = ['rr','track', 'disappear', 'appear', 'reward','nonreward_remap']
     
     n_out = {}
     inds = {}
@@ -2032,9 +1956,9 @@ def get_cell_class_n(_multiDayData, day, an, exclude_rr_from_others=True, verbos
             n_out['rr'] = len(keep)
             inds['rr'] = keep
 
-        elif celltype == 'stable':
+        elif celltype == 'track':
             keep = np.where(
-                _multiDayData[day].cell_class[an]['masks']['stable'])[0]
+                _multiDayData[day].cell_class[an]['masks']['track'])[0]
 
         elif celltype == 'appear':
             keep = np.where(
@@ -2050,7 +1974,7 @@ def get_cell_class_n(_multiDayData, day, an, exclude_rr_from_others=True, verbos
             n_out['nonreward_remap_inc_rr'] = len(keep)
             inds['nonreward_remap_inc_rr'] = keep
 
-        elif celltype == 'unstable':
+        elif celltype == 'non-track':
             keep = np.where((_multiDayData[day].cell_class[an]['masks']['appear'] |
                              _multiDayData[day].cell_class[an]['masks']['disappear'] |
                              _multiDayData[day].cell_class[an]['masks']['nonreward_remap']
@@ -2079,7 +2003,7 @@ def get_cell_class_n(_multiDayData, day, an, exclude_rr_from_others=True, verbos
 
     classified_inds = np.concatenate([inds[ct] for ct in inds.keys()])
     # check for duplicates in the exclusive categories:
-    check_inds = np.concatenate([inds[ct] for ct in ['stable', 'appear', 'disappear', 'rr', 'nonreward_remap']])
+    check_inds = np.concatenate([inds[ct] for ct in ['track', 'appear', 'disappear', 'rr', 'nonreward_remap']])
     if len(check_inds) != len(np.unique(check_inds)):
         print('duplicates detected')
         
