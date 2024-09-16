@@ -190,7 +190,7 @@ class dayData:
         self.exclude_end_cells = False
         self.exclude_reward_cells = False
         self.exclude_not_reward_cells = False
-        self.exclude_stable_cells = False
+        self.exclude_track_cells = False
         self.reward_dist_exclusive = 50
         self.reward_dist_inclusive = 50
         self.reward_overrep_dist = 25
@@ -248,7 +248,7 @@ class dayData:
         self.is_int = {}
         self.is_reward_cell = {}
         self.is_end_cell = {}
-        self.is_stable_cell = {}
+        self.is_track_cell = {}
         self.keep_masks = {}
 
         # place field peak distribution in each block and for each trial set
@@ -585,16 +585,16 @@ class dayData:
         # Stable cells: peaks within 50 cm of each other from set 0 to set 1,
         # [must also have significant spatial info in both sets]
         # excludes any that could also be counted as reward cells (useful for non-switch days)
-        stable_cells = spatial.find_stable_cells(self.peaks[an]['set 0'],
+        track_cells = spatial.find_track_cells(self.peaks[an]['set 0'],
                                                  self.peaks[an]['set 1'],
                                                  self.rzone_pos[an]['set 0'][0],
                                                  self.rzone_pos[an]['set 1'][0],
                                                  dist=self.reward_dist_exclusive)
 
-        self.is_stable_cell[an] = stable_cells
+        self.is_track_cell[an] = track_cells
 
-        if self.exclude_stable_cells:
-            keep_masks = np.multiply(keep_masks, ~stable_cells)
+        if self.exclude_track_cells:
+            keep_masks = np.multiply(keep_masks, ~track_cells)
 
         if self.stability_threshold is not None:
             trial_mat = np.copy(
@@ -1050,9 +1050,9 @@ class dayData:
    
                 keep_masks = np.multiply(keep_masks, ~self.is_reward_cell[an])
 
-            if self.exclude_stable_cells:
+            if self.exclude_track_cells:
 
-                keep_masks = np.multiply(keep_masks, ~self.is_stable_cell[an])
+                keep_masks = np.multiply(keep_masks, ~self.is_track_cell[an])
                 print(f'{keep_masks.sum()} cells remaining in circ')
 
             self.keep_masks[an] = keep_masks
@@ -1155,7 +1155,7 @@ class dayData:
         n_place_cells = np.sum(
             [np.sum(self.overall_place_cell_masks[an]) for an in include_ans])
        
-        self.circ_rel_stats_across_an = {'include_ans': include_ans,
+        self.circ_rel_info_switch_an = {'include_ans': include_ans,
                                          'rdist_to_rad_inc': rdist_to_rad_inc,
                                          'rdist_to_rad_exc': rdist_to_rad_exc,
                                          'min_pos': min_pos,
@@ -1165,7 +1165,7 @@ class dayData:
                                          }
 
     def filter_place_cells_posthoc(self,
-                                   exclude_stable_cells=False,
+                                   exclude_track_cells=False,
                                    exclude_reward_cells=False,
                                    exclude_end_cells=False,
                                    use_and_cells=False,
@@ -1204,11 +1204,11 @@ class dayData:
                                 bool_to_include[an], is_and)
                    
             # here we're selecting which cells to exclude from place_cell_ids
-            if exclude_stable_cells:
-                stable_cell_ids = np.where(self.is_stable_cell[an])[0]
-                not_stable = ~np.isin(place_cell_ids, stable_cell_ids)
+            if exclude_track_cells:
+                track_cell_ids = np.where(self.is_track_cell[an])[0]
+                not_track = ~np.isin(place_cell_ids, track_cell_ids)
                 bool_to_include[an] = np.multiply(
-                    bool_to_include[an], not_stable)
+                    bool_to_include[an], not_track)
 
             if exclude_reward_cells:
                 reward_cell_ids = np.where(self.is_reward_cell[an])[0]
@@ -1503,7 +1503,7 @@ def plot_rew_rel_hist_across_an(multiDayData,
                                 bin_size=(2*np.pi)/45,
                                 dot_edges='on',
                                 exclude_reward_cells=False,
-                                exclude_stable_cells=True,
+                                exclude_track_cells=True,
                                 exclude_end_cells=False,
                                 use_and_cells=True,
                                 max_pos=450,
@@ -1542,9 +1542,9 @@ def plot_rew_rel_hist_across_an(multiDayData,
 
     for d_i, day in enumerate(exp_days):
 
-        rdist_to_rad_exc = multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_exc']
-        rdist_to_rad_inc = multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc']
-        include_ans = multiDayData[day].circ_rel_stats_across_an["include_ans"]
+        rdist_to_rad_exc = multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_exc']
+        rdist_to_rad_inc = multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc']
+        include_ans = multiDayData[day].circ_rel_info_switch_an["include_ans"]
 
         # Concatenate relative peaks
         dist_btwn_rel_peaks = {}
@@ -1553,12 +1553,12 @@ def plot_rew_rel_hist_across_an(multiDayData,
         dist_btwn_rel_null = {}
 
 
-        include_ans = multiDayData[day].circ_rel_stats_across_an["include_ans"]
+        include_ans = multiDayData[day].circ_rel_info_switch_an["include_ans"]
 
         # Filter and concatenate relative peaks
 
         bool_to_include, inds_to_include = multiDayData[day].filter_place_cells_posthoc(
-            exclude_stable_cells=exclude_stable_cells,
+            exclude_track_cells=exclude_track_cells,
             exclude_reward_cells=exclude_reward_cells,
             exclude_end_cells=exclude_end_cells,
             use_and_cells=use_and_cells,
@@ -1618,9 +1618,9 @@ def plot_rew_rel_hist_across_an(multiDayData,
                                    )
         
         ## Write histogram to the class, with params:
-        multiDayData[day].circ_rel_stats_across_an['hist_dist_btwn_rel_peaks'] = hist_data
-        multiDayData[day].circ_rel_stats_across_an['hist_null'] = hist_null
-        multiDayData[day].circ_rel_stats_across_an.update({'hist_params': {'exclude_stable_cells': exclude_stable_cells,
+        multiDayData[day].circ_rel_info_switch_an['hist_dist_btwn_rel_peaks'] = hist_data
+        multiDayData[day].circ_rel_info_switch_an['hist_null'] = hist_null
+        multiDayData[day].circ_rel_info_switch_an.update({'hist_params': {'exclude_track_cells': exclude_track_cells,
                                                                            'exclude_reward_cells':exclude_reward_cells,
                                                                             'exclude_end_cells':exclude_end_cells,
                                                                             'use_and_cells':use_and_cells,
@@ -1685,14 +1685,14 @@ def plot_rew_rel_hist_across_an(multiDayData,
             len(use_rel_peaks_set1
                 )) - 0.5) * (np.pi/50)
 
-        xx = np.arange(-np.pi+multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc'],
+        xx = np.arange(-np.pi+multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc'],
                        np.pi -
-                       multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc'],
+                       multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc'],
                        bin_size)
         y1 = xx + \
-            multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc']
+            multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc']
         y2 = xx - \
-            multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc']
+            multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc']
         ax2[d_i].fill_between(xx,
                               y1,
                               y2,
@@ -1775,7 +1775,7 @@ def plot_rew_rel_hist_across_an(multiDayData,
 
 def plot_rew_rel_hist_indiv_an(multiDayData,
                                exclude_reward_cells=False,
-                               exclude_stable_cells=True,
+                               exclude_track_cells=True,
                                exclude_end_cells=False,
                                use_and_cells=True,
                                ylim_max=None,
@@ -1792,7 +1792,7 @@ def plot_rew_rel_hist_indiv_an(multiDayData,
     exp_days = multiDayData.keys()
     max_include_ans = sorted(
         np.unique(np.concatenate(
-            [multiDayData[d].circ_rel_stats_across_an["include_ans"]
+            [multiDayData[d].circ_rel_info_switch_an["include_ans"]
                 for d in exp_days]
         )), key=len)
 
@@ -1817,11 +1817,11 @@ def plot_rew_rel_hist_indiv_an(multiDayData,
     dist_along_unity = {}
 
     for d_i, day in enumerate(exp_days):
-        rdist_to_rad_exc = multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_exc']
+        rdist_to_rad_exc = multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_exc']
         frac_above_shuf[day] = dict([(an, {}) for an in max_include_ans])
         
         bool_to_include, inds_to_include = multiDayData[day].filter_place_cells_posthoc(
-            exclude_stable_cells=exclude_stable_cells,
+            exclude_track_cells=exclude_track_cells,
             exclude_reward_cells=exclude_reward_cells,
             exclude_end_cells=exclude_end_cells,
             use_and_cells=use_and_cells,
@@ -1875,7 +1875,7 @@ def plot_rew_rel_hist_indiv_an(multiDayData,
                 use_dist_along_unity_inds, use_dist_along_unity = _mean_rel_dist(
                     rel_peaks0[an], 
                     rel_peaks1[an],
-                    multiDayData[day].circ_rel_stats_across_an['rdist_to_rad_inc'])
+                    multiDayData[day].circ_rel_info_switch_an['rdist_to_rad_inc'])
 
                 dist_along_unity[day][an] = use_dist_along_unity
 
@@ -1994,8 +1994,8 @@ def subclass(_multiDayData):
             self.cell_class = copy.deepcopy(getattr(_dayData,
                                                     'cell_class'))
 
-            self.circ_rel_stats_across_an = copy.deepcopy(getattr(_dayData,
-                                                                  'circ_rel_stats_across_an'))
+            self.circ_rel_info_switch_an = copy.deepcopy(getattr(_dayData,
+                                                                  'circ_rel_info_switch_an'))
 
             self.overall_place_cell_masks = copy.deepcopy(getattr(_dayData,
                                                                   'overall_place_cell_masks'))

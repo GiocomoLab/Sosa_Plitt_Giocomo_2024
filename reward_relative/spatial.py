@@ -71,9 +71,9 @@ def find_reward_cells(peaks0, peaks1, rzone0, rzone1, reward_dist=50):
     return masks
 
 
-def find_stable_cells(peaks0, peaks1, rzone0, rzone1, dist=50):
+def find_track_cells(peaks0, peaks1, rzone0, rzone1, dist=50):
     """
-    "Stable" cells are cell that maintain their spatial
+    "track" cells are cell that maintain their spatial
     firing position within dist across two sets of trials
     """
     cells_near_reward = find_reward_cells(peaks0, peaks1,
@@ -626,7 +626,7 @@ def get_frac_from_2D_peak_hist(peak_hist, reward0, reward1,
         ax.set_xlabel('pos trial set 2')
         ax.set_ylabel('pos trial set 0')
         ax.invert_yaxis()
-        ax.set_title('diagonal / stable')
+        ax.set_title('diagonal / track')
 
         fig, ax = plt.subplots()
         ax.imshow(not_diag_not_reward)
@@ -807,7 +807,7 @@ def get_cell_classes(anim_sess, peaks_set0, peaks_set1, is_int,
     :param is_int: Boolean for each cell of whether it is a putative interneuron;
         should be a dictionary with animals as keys
     :param inclusive_dist: the distance threshold between place field peaks before and after
-        for calling a cell "reward" or "stable"
+        for calling a cell "reward" or "track"
     :param r_thresh: (for method 'speed') threshold for speed correlation r
     :return: cell_class_masks: dictionary of boolean masks for each cell and type, for each animal
     """
@@ -851,11 +851,11 @@ def get_cell_classes(anim_sess, peaks_set0, peaks_set1, is_int,
                                                 )
                                                 )
 
-    tmp_stable = find_stable_cells(peaks_set0, peaks_set1,
+    tmp_track = find_track_cells(peaks_set0, peaks_set1,
                                    rzone0, rzone1,
                                    dist=inclusive_dist)
-    tmp_stable = np.logical_and(tmp_stable, ~is_int)
-    cell_class_masks['track_relative'] = np.logical_and(tmp_stable,
+    tmp_track = np.logical_and(tmp_track, ~is_int)
+    cell_class_masks['track_relative'] = np.logical_and(tmp_track,
                                                 np.logical_and(
                                                     anim_sess['pc masks set0'],
                                                     anim_sess['pc masks set1']
@@ -863,7 +863,7 @@ def get_cell_classes(anim_sess, peaks_set0, peaks_set1, is_int,
                                                 )
 
     tmp_nonrewardremap = np.logical_and(
-        np.logical_and(~tmp_stable, ~tmp_reward), ~is_int)
+        np.logical_and(~tmp_track, ~tmp_reward), ~is_int)
     cell_class_masks['nonreward_remap'] = np.logical_and(tmp_nonrewardremap,
                                                          np.logical_and(
                                                              anim_sess['pc masks set0'],

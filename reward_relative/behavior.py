@@ -617,9 +617,9 @@ def smooth_raster(x, mat, ax=None, smooth=False, sig=2, vals=None, cmap=None, co
             ax.scatter(tports[ind], i + .5,
                        color=cm(np.float(vals[ind])), marker='x', s=50)
 
-    ax.set_yticks(np.arange(0, mat.shape[0], 10))
+    ax.set_yticks(np.arange(0, mat.shape[0]+10, 10))
     ax.set_yticklabels([("%d" % i)
-                        for i in np.arange(mat.shape[0], 0, -10).tolist()])
+                        for i in np.arange(mat.shape[0], 0-10, -10).tolist()])
 
     if ax is None:
         return f, ax

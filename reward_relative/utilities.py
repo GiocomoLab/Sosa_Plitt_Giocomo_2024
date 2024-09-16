@@ -736,6 +736,13 @@ def multi_anim_sess(
             path_dict["preprocessed_root"], animal, exp_day=exp_day
         )
         sess = load_sess_pickle(path_dict["preprocessed_root"], animal, exp_day=exp_day)
+        
+        # find whether to keep_teleports
+        if type(dff_method["keep_teleports"]) is bool:
+            keep_teleports_this_an = dff_method["keep_teleports"]
+        else:
+            keep_teleports_this_an = dff_method["keep_teleports"][an_i]
+            
 
         if calc_dff:
             # currently not set up for multiplane
@@ -774,7 +781,7 @@ def multi_anim_sess(
                         frame_rate=sess.scan_info["frame_rate"],
                         n_planes=sess.n_planes,
                         deconvolve=True,
-                        keep_teleports=dff_method["keep_teleports"],
+                        keep_teleports=keep_teleports_this_an,
                     )
                     sess.add_timeseries(**{"events": events})
                     sess.add_pos_binned_trial_matrix("events", "pos")
@@ -792,7 +799,7 @@ def multi_anim_sess(
                         regress_r_from_g=dff_method["regress_r_from_g"],
                         baseline_method=dff_method["baseline_method"],
                         neu_coef=dff_method["neu_coef"],
-                        keep_teleports=dff_method["keep_teleports"],
+                        keep_teleports=keep_teleports_this_an,
                     )
 
                 # add deltaF/F timeseries to session object
@@ -815,7 +822,7 @@ def multi_anim_sess(
                         frame_rate=sess.scan_info["frame_rate"],
                         n_planes=sess.n_planes,
                         deconvolve=True,
-                        keep_teleports=dff_method["keep_teleports"],
+                        keep_teleports=keep_teleports_this_an,
                     )
                     sess.add_timeseries(**{"events": events})
                     sess.add_pos_binned_trial_matrix("events", "pos")
@@ -830,7 +837,7 @@ def multi_anim_sess(
                         subtract_baseline=True,
                         regress_ts=None,
                         neu_coef=dff_method["neu_coef"],
-                        keep_teleports=dff_method["keep_teleports"],
+                        keep_teleports=keep_teleports_this_an,
                     )
 
                 sess.add_timeseries(dff=dFF)
