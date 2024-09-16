@@ -158,6 +158,162 @@ def plot_single_cell(ax,
     return
 
 
+def plot_single_cell_dual(sess,
+                          cell_idx,
+                          c_ax,
+                          d_ax,
+                          sigma=2,
+                          normalization_method=None,
+                          reward_zone=None,
+                          markersize=1,
+                          sort_by=None,
+                          plot_colorbar=False,
+                          **kwargs
+                          ):
+    """
+    Plot single cell spatially-binned activity ratemap, dual channel
+
+    :param sess: session class, requires sess.trial_matrices['dff'] and ['dff2']
+    :param cell_idx: single index along axis=2 of dff
+    :param c_ax: figure axis for calcium activity plot (ch1)
+    :param d_ax: figure axis for channel 2 plot
+    :param sigma: smoothing guassian s.d. (bins)
+    :param normalization_method: how to normalize activity for plotting
+            -- options: 'mean', 'max', 'zscore'
+            -- gets passed to single_cell_mat
+    :param reward_zone: 2D array of ntrials x reward_zone [start,stop]
+    :param markersize: marker size for reward zone plotting
+    :param sort_by: how to sort the trials
+            -- if None, trials are sorted chronologically (i.e. no sorting)
+            -- suggested options are: isreward,morph,dream, from get_trial_types
+            -- these should be vectors of 1s and 0s, not a string name
+    :param plot_colorbar: whether to plot a horizontal colorbar below each cell
+            -- default = False because it squishes the axes
+    :param kwargs: standard matplotlib keyword args
+    :return:
+    """
+
+    # trial matrics of place cells for ch1 (dff) and ch2 (dff2)
+    dff = np.copy(sess.trial_matrices['dff'][0])
+    dff2 = np.copy(sess.trial_matrices['dff2'][0])
+
+    if sort_by is not None:
+        sort = np.argsort(sort_by, kind='stable')
+        dff = dff[sort, :, :]
+        dff2 = dff2[sort, :, :]
+        if reward_zone is not None:
+            reward_zone = reward_zone[sort, :]
+
+    c, c_vlim = single_cell_mat(
+        cell_idx, dff, sigma=sigma, normalization_method=normalization_method)
+    d, d_vlim = single_cell_mat(
+        cell_idx, dff2, sigma=sigma, normalization_method=normalization_method)
+
+    c_plot = c_ax.imshow(c, cmap='magma', aspect='auto',
+                         vmin=c_vlim[0], vmax=c_vlim[1])
+    c_ax.set_ylabel('Trial #')
+    c_ax.set_xlabel('position (10 cm bin)')
+    c_ax.set_title("%d" % cell_idx + ' ch1')
+    axes.Axes.set_ylim(c_ax, bottom=c.shape[0])
+    if plot_colorbar:
+        fig = plt.gcf()
+        fig.colorbar(c_plot, ax=c_ax, orientation='horizontal')
+
+    d_plot = d_ax.imshow(d, cmap='viridis', aspect='auto',
+                         vmin=d_vlim[0], vmax=d_vlim[1])
+    d_ax.set_xlabel('position (10 cm bin)')
+    d_ax.set_title("%d" % cell_idx + ' ch2')
+    axes.Axes.set_ylim(d_ax, bottom=d.shape[0])
+    if plot_colorbar:
+        fig.colorbar(d_plot, ax=d_ax, orientation='horizontal')
+
+    if reward_zone is not None:
+        c_ax.plot(reward_zone[:, 0]/10, np.arange(c.shape[0]),
+                  'w.', markersize=markersize)
+        d_ax.plot(reward_zone[:, 0]/10, np.arange(c.shape[0]),
+                  'w.', markersize=markersize)
+
+    return
+
+
+def plot_all_single_cells_dual(sess,
+                               pc_masks,
+                               sigma=2,
+                               normalization_method='mean',
+                               plot_reward_zone=False):
+    """
+    Dual channel plotting of all cells where pc_masks==True
+    Assumes dff is calcium activity and dff2 is another sensor/indicator
+
+    :param sess: session class, requires sess.trial_matrices['dff'] and ['dff2']
+    :param pc_masks: boolean mask of which ROIs are place cells
+    :param sigma: guassian s.d. for smoothing (in bins)
+    :param normalization_method: how to normalize activity for plotting
+            -- options: 'mean', 'max', 'zscore'
+            -- gets passed to _single_cell_mat
+    :param plot_reward_zone: whether to plot dots marking start of reward zone
+    :return: plots the figure
+    """
+
+    # set up axes
+    xstride = 3
+    ystride = 4
+    nperrow = 8
+    fig = plt.figure(figsize=[nperrow*xstride, pc_masks.sum()/nperrow*ystride])
+    # gridspec is fancy subplot controller, can specify how big each one is exactly
+    # set defined resolution for plot grid
+    gs = gridspec.GridSpec(
+        math.ceil(pc_masks.sum()/nperrow)*ystride, xstride*nperrow)
+    # trial matrics of place cells for ch1 (_tm) and ch2 (_dff2_tm)
+    _tm = sess.trial_matrices['dff'][0][:, :, pc_masks]
+    _dff2_tm = sess.trial_matrices['dff2'][0][:, :, pc_masks]
+
+    # original index of ROIs that are place cells
+    cellID = np.where(pc_masks)[0]
+
+    if plot_reward_zone:
+        reward_zone, _ = behavior.get_reward_zones(sess)
+
+    for cell in range(_tm.shape[-1]):
+
+        c, c_vlim = single_cell_mat(cell, _tm, sigma=sigma,
+                                    normalization_method=normalization_method)
+        d, d_vlim = single_cell_mat(cell, _dff2_tm, sigma=sigma,
+                                    normalization_method=normalization_method)
+
+        # add plots
+        row_i = int(ystride*math.floor(cell/nperrow))
+        col_i = int(xstride*(cell % nperrow))
+
+        # specifiy which grid to plot cells
+        c_ax = fig.add_subplot(gs[row_i:row_i+ystride-1, col_i])
+        c_ax.imshow(c, cmap='magma', aspect='auto',
+                    vmin=c_vlim[0], vmax=c_vlim[1])
+
+        d_ax = fig.add_subplot(gs[row_i:row_i+ystride-1, col_i+1])
+        d_ax.imshow(d, cmap='viridis', aspect='auto',
+                    vmin=d_vlim[0], vmax=d_vlim[1])
+
+        if plot_reward_zone:
+            c_ax.plot(reward_zone[:, 0]/10,
+                      np.arange(c.shape[0]), 'w.', markersize=1)
+            d_ax.plot(reward_zone[:, 0]/10,
+                      np.arange(c.shape[0]), 'w.', markersize=1)
+
+        c_ax.set_yticks([])
+        d_ax.set_xticks([])
+        c_ax.set_xticks([])
+        d_ax.set_yticks([])
+        d_ax.set_title("%d" % cellID[cell])
+
+        if row_i == 0 and col_i == 0:
+            c_ax.set_ylabel('Trial #')
+
+    fig.patch.set_facecolor('white')
+
+    return fig
+
+
 def plot_all_single_cells(sess,
                           pc_masks=None,
                           ts_key='dff',
@@ -218,6 +374,10 @@ def plot_all_single_cells(sess,
     if max_cells == 0:
         raise NotImplementedError("No cells to plot")
 
+    # fig = plt.figure(figsize=[nperrow*xstride, max_cells/nperrow*ystride])
+    # gridspec is fancy subplot controller, can specify how big each one is exactly
+    # set defined resolution for plot grid
+
     # Define the number of subplots
     nrows = math.ceil(max_cells/nperrow)*ystride
     ncols = nperrow*xstride
@@ -242,6 +402,8 @@ def plot_all_single_cells(sess,
                            width_ratios=[subplot_width]*ncols,
                            height_ratios=[subplot_height]*nrows,
                            wspace=wspace/fig_width, hspace=hspace/fig_height)
+
+    # gs = gridspec.GridSpec(math.ceil(max_cells/nperrow)*ystride, xstride*nperrow)
 
     if plot_reward_zone:
         reward_zone, _ = behavior.get_reward_zones(sess)
@@ -337,6 +499,9 @@ def plot_all_single_cells(sess,
         if plot_teleports:
             trackstarts = np.zeros((reward_zone.shape[0],))
             teleports = np.zeros((reward_zone.shape[0],))
+            # trackstart_shift = circ.phase_diff(spatial.pos_cm_to_rad(np.abs(rzone_diff), max_pos, min_pos=min_pos),
+            #                                  spatial.pos_cm_to_rad(0, max_pos, min_pos=min_pos))
+            # print(trackstart_shift)
             trackstarts[trial_set0] = spatial.pos_cm_to_rad(
                 0, max_pos, min_pos=min_pos)
             trackstarts[trial_set1] = circ.wrap(
@@ -371,6 +536,16 @@ def plot_all_single_cells(sess,
             trackstarts = np.zeros((reward_zone.shape[0],))
             teleports = np.ones((reward_zone.shape[0],))*max_pos
 
+        # tm = TwoPUtils.spatial_analyses.trial_matrix(sess.timeseries[ts_key].T,
+        #                                           sess.vr_data['pos']._values,
+        #                                           tstart_inds,
+        #                                           tstop_inds,
+        #                                           bin_size=10,
+        #                                           min_pos=min_pos,
+        #                                           max_pos=max_pos,
+        #                                           speed_thr=speed_thr,
+        #                                           speed=speed
+        #                                           )
 
     if impute_nans:
         for trial in range(tm[0].shape[0]):
@@ -429,12 +604,14 @@ def plot_all_single_cells(sess,
         # add plots
         row_i = int(ystride*math.floor(cell/nperrow))
         col_i = int(xstride*(cell % nperrow))
-
+        # row_i = int(math.floor(cell/nperrow))
+        # col_i = int((cell % nperrow))
 
         # specifiy which grid to plot cells
         c_ax = fig.add_subplot(
             gs[row_i:row_i+ystride-1, col_i:col_i+xstride-1])
-
+        # c_ax = fig.add_subplot(
+        # gs[row_i, col_i])
         c_ax.imshow(c, cmap=cmap, extent=(tm[-2][0], tm[-2][-1], use_tm.shape[0], 0),
                     aspect='auto',
                     vmin=c_vlim[0], vmax=c_vlim[1])
@@ -476,9 +653,12 @@ def plot_all_single_cells(sess,
                     for f in field_pos['set 1']['pos'][cellID[cell]]:
                         if circ_shift:
                             f = circ.wrap(spatial.pos_cm_to_rad(
-                                f, max_pos, min_pos) + circ.wrap(spatial.pos_cm_to_rad(rzone0[0], max_pos, min_pos=min_pos
-                                                                                       ) - spatial.pos_cm_to_rad(rzone1[0], max_pos, min_pos=min_pos
-                                                                                                                 )))
+                                f, max_pos, min_pos) + circ.wrap(spatial.pos_cm_to_rad(
+                                rzone0[0], max_pos, min_pos=min_pos
+                                
+                            ) - spatial.pos_cm_to_rad(rzone1[0], max_pos, min_pos=min_pos
+                                                                                                                 
+                                                     )))
 
                         c_ax.plot(f,
                                   np.zeros((len(f),))-2,
@@ -488,6 +668,11 @@ def plot_all_single_cells(sess,
                 else:
                     raise NotImplementedError(
                         'field pos dictionary does not appear to be organized by trial set')
+
+            # else:
+            #     [c_ax.plot(f,
+            #                np.zeros((len(f),))
+            #               , 'g.', markersize=5) for f in field_pos[cellID[cell]]]
 
         # c_ax.set_yticks([])
         # c_ax.set_xticks([])
@@ -506,6 +691,225 @@ def plot_all_single_cells(sess,
     fig.patch.set_facecolor('white')
 
     return fig
+
+
+def plot_single_cells_w_similarity_matrix(an,
+                                          cell_mask,
+                                          multi_anim_sess_in,
+                                          ts_key='events',
+                                          sigma=1,
+                                          circ_shift=False,
+                                          use_speed_thr=True,
+                                          sim_method='correlation',
+                                          max_pos=450,
+                                          min_pos=0,
+                                          lin_bin_size=10):
+    """
+    This function is similar to placeCellPlot.plot_all_single_cells
+    but adds the trial-by-trial correlation matrix next to each cell
+
+    Title of each plot will report the lag of the peak xcorr of the trial-averaged
+    firing in trial set 0 vs 1 in the current axes (not relative to shuffle), 
+    so if circ_shift==False, this will be the linear track coordinates, 
+    and if circ_shift==True, this will be circular coordinates relative to reward.
+    """
+    from . import xcorr as xc
+
+    # option to plot a specific category defined in cell classes
+    category = 'disappear'  # if None, will plot all place cells as defined below
+
+    if use_speed_thr:
+        speed = np.copy(multi_anim_sess_in[an]
+                        ['sess'].vr_data['speed'].values)
+    else:
+        speed = None
+
+    figtag = ''
+    if circ_shift:
+        figtag = figtag + 'circShift'
+    if use_speed_thr:
+        figtag = figtag + '_useSpeed'
+
+    if circ_shift:
+        circ_bin_size = 2*np.pi/((max_pos-min_pos)/lin_bin_size)
+
+        # teleport starts at -50, so add 50 to make it start at 0 and track end at 500
+        circ_pos = spatial.pos_cm_to_rad(
+            multi_anim_sess_in[an]['sess'].vr_data['pos'].values, max_pos, min_pos)
+        rzone0 = np.unique(multi_anim_sess_in[an]['rzone'][
+            multi_anim_sess_in[an]['trial dict']['trial_set0'], :])
+        rzone1 = np.unique(multi_anim_sess_in[an]['rzone'][
+            multi_anim_sess_in[an]['trial dict']['trial_set1'], :])
+
+        circ_rzone0 = spatial.pos_cm_to_rad(rzone0, max_pos, min_pos)
+        circ_rzone1 = spatial.pos_cm_to_rad(rzone1, max_pos, min_pos)
+
+        tm = TwoPUtils.spatial_analyses.trial_matrix(multi_anim_sess_in[an]['sess'].timeseries[ts_key].T,
+                                                     circ_pos,
+                                                     multi_anim_sess_in[an]['sess'].trial_start_inds,
+                                                     multi_anim_sess_in[an]['sess'].teleport_inds,
+                                                     bin_size=circ_bin_size,
+                                                     min_pos=-np.pi,
+                                                     max_pos=np.pi,
+                                                     speed_thr=2,
+                                                     speed=speed
+                                                     )
+
+        # find the number of indices that aligns rzone1 with rzone 1
+        if rzone0[0] > rzone1[0]:
+            shift = int(
+                np.round((circ_rzone0[0]-circ_rzone1[0])/circ_bin_size))
+        elif rzone1[0] > rzone0[0]:
+            shift = - \
+                int(np.round((circ_rzone1[0]-circ_rzone0[0])/circ_bin_size))
+
+        print(shift)
+
+        tm[0][multi_anim_sess_in[an]['trial dict']['trial_set1'], :, :] = np.roll(
+            tm[0][multi_anim_sess_in[an]['trial dict']['trial_set1'], :, :],
+            shift,
+            axis=1
+        )
+
+        circ_rzone1_to_plot = circ.wrap(
+            circ_rzone1 + circ.wrap(circ_rzone0[0]-circ_rzone1[0])
+        )
+
+        reward_zone = np.vstack((
+            np.tile(np.expand_dims(circ_rzone0, 1).T, (len(
+                np.where(multi_anim_sess_in[an]['trial dict']['trial_set0'])[0]), 1)),
+            np.tile(np.expand_dims(circ_rzone1_to_plot, 1).T, (len(
+                np.where(multi_anim_sess_in[an]['trial dict']['trial_set1'])[0]), 1))
+        ))
+    else:
+        reward_zone = multi_anim_sess_in[an]["rzone"]  # /10
+
+        if use_speed_thr:
+            tm = TwoPUtils.spatial_analyses.trial_matrix(multi_anim_sess_in[an]['sess'].timeseries[ts_key].T,
+                                                         multi_anim_sess_in[an]['sess'].vr_data['pos'].values,
+                                                         multi_anim_sess_in[an]['sess'].trial_start_inds,
+                                                         multi_anim_sess_in[an]['sess'].teleport_inds,
+                                                         bin_size=lin_bin_size,
+                                                         min_pos=min_pos,
+                                                         max_pos=max_pos,
+                                                         speed_thr=2,
+                                                         speed=speed
+                                                         )
+        else:
+            tm = np.copy(multi_anim_sess_in[an]["sess"].trial_matrices[ts_key])
+
+    # Define place cell masks to plot
+    if type(cell_mask) is not bool:
+        pc_masks = np.zeros((tm[0].shape[2],)).astype(bool)
+        pc_masks[cell_mask] = True
+    else:
+        pc_masks = cell_mask
+
+    cell_sim_mat = dict()
+
+    use_tm = tm[0][:, :, pc_masks]
+
+    for c in range(use_tm.shape[-1]):
+
+        mat = use_tm[:, :, c]
+        mat = ut.nansmooth(mat, 2, axis=1)
+
+        if sim_method == 'cosine_sim':
+            cell_sim_mat[c] = spatial.cosine_similarity(mat, zscore=True)
+        elif sim_method == 'correlation':
+            cell_sim_mat[c] = spatial.corr_mat(mat)
+
+    # ---- Plot single cell place fields and trial-by-trial similarity matrices ----
+
+    cell_range = [0, pc_masks.sum()]
+
+    xstride = 3
+    ystride = 3
+    nperrow = 8
+    fig = plt.figure(figsize=[nperrow * xstride,
+                              cell_range[-1] / nperrow * ystride])
+    gs = gridspec.GridSpec(
+        math.ceil(cell_range[-1] / nperrow) * ystride, xstride * nperrow
+    )  # defined resolution for plot grid
+
+    set0_map = use_tm[multi_anim_sess_in[an]['trial dict']['trial_set0'], :, :]
+    set1_map = use_tm[multi_anim_sess_in[an]['trial dict']['trial_set1'], :, :]
+    lags = xc.xcorr_lags(len(tm[-1]), len(tm[-1]), mode="same")
+
+    xc_mat = np.zeros((use_tm.shape[2], len(lags)))*np.nan
+    xc_peaks = np.zeros((use_tm.shape[2],))*np.nan
+
+    for roi in range(0, set0_map.shape[2]):
+        # trial_avg map
+        this_cell_map0 = np.nanmean(set0_map[:, :, roi], axis=0)
+        this_cell_map1 = np.nanmean(set1_map[:, :, roi], axis=0)
+
+        xc_mat[roi, :] = sp.signal.correlate(this_cell_map0/np.nanmax(this_cell_map0),
+                                             this_cell_map1 /
+                                             np.nanmax(this_cell_map1),
+                                             mode="same") / len(lags)
+
+        xc_peaks[roi] = lags[ut.nanargmax(xc_mat[roi, :])]
+
+    for cell in range(cell_range[0], cell_range[-1]):
+
+        ID = np.where(pc_masks)[0][cell]
+        cs = cell_sim_mat[cell]
+
+        pf, pf_vlim = single_cell_mat(
+            cell, use_tm, sigma=sigma, normalization_method="mean",
+        )
+
+        # add plots
+        row_i = int(ystride * math.floor(cell / nperrow))
+        col_i = int(xstride * (cell % nperrow))
+
+        pf_ax = fig.add_subplot(gs[row_i: row_i + ystride - 1, col_i])
+        if circ_shift:
+            plot_single_cell(
+                pf_ax,
+                trial_mat=pf,
+                vlim=pf_vlim,
+                reward_zone=reward_zone,
+                markersize=1,
+                label_axes=False,
+                extent=(tm[-1][0], tm[-1][-1], use_tm.shape[0], 0))  # (left, right, bottom, top))
+        else:
+            plot_single_cell(
+                pf_ax,
+                trial_mat=pf,
+                vlim=pf_vlim,
+                reward_zone=reward_zone,
+                markersize=1,
+                label_axes=False,)
+            # extent = (tm[-1][0], tm[-1][-1], use_tm.shape[0], 0) #(left, right, bottom, top))
+
+        cs_ax = fig.add_subplot(
+            gs[row_i: row_i + ystride - 1, col_i + 1: col_i + 1 + xstride - 1]
+        )  # specifiy which grid to plot cells
+        cs_ax.imshow(
+            cs,
+            cmap="cividis",
+            aspect="auto",
+            vmin=0,
+            vmax=1,
+        )
+
+        cs_ax.set_yticks([])
+        cs_ax.set_xticks([])
+
+        cs_ax.set_title(("%d, xc %d" % (ID,
+                                        xc_peaks[cell]
+                                        )),
+                        fontsize=10
+                        )
+
+        if row_i == 0 and col_i == 0:
+            pf_ax.set_ylabel("Trial #")
+
+    fig.patch.set_facecolor("white")
+
+    return fig, figtag
 
 
 def placecell_sort_by_trial_subset(dff,
@@ -544,8 +948,6 @@ def placecell_sort_by_trial_subset(dff,
         sort_by = np.logical(np.ones(dff.shape[0],))
 
     # Get cross-validated sort and map from the sort-by set
-    # train_map, train_sort = TwoPUtils.spatial_analyses.placecell_sort(
-    #     dff[sort_by], pc_masks, sigma=sigma)
     train_sort, train_map, train_max = spatial.cross_val_sort(
         dff[sort_by][:, :, pc_masks], axis=0)
 
@@ -712,12 +1114,76 @@ def plot_population(dff_toplot,
     return fig, ax
 
 
+def plot_population_dual(dff_toplot,
+                         dff2_toplot,
+                         c_ax=None,
+                         d_ax=None,
+                         sort_by='dff',
+                         reward_zone=None,
+                         plot_colorbar=False,
+                         vlim=[0, 0.9]):
+    """
+    Plot side-by-side calcium dff and another color dff (dff2) for the same ROIs
+    (dual color imaging).
+
+    :param dff_toplot: calcium dff array of shape ROIs x position bins
+    :param dff2_toplot: neuromod dff array of shape ROIs x position bins
+    :param c_ax: calcium figure axis
+    :param d_ax: neuromod figure axis
+    :param sort_by: which dataset the ROIs are already sorted by
+    :param reward_zone: 2D array of ntrials x reward_zone [start,stop]
+    :param plot_colorbar: whether to plot a colorbar
+    :return: fig, ax for the figure
+    """
+
+    # if no axis given, make a new one:
+    if c_ax is None or d_ax is None:
+        fig, ax = plt.subplots(2, 4, figsize=[20, 15])
+        c_ax = ax[0, 0]
+        d_ax = ax[0, 1]
+    else:
+        fig = plt.gcf()
+
+    c_plot = c_ax.imshow(dff_toplot, cmap='magma', aspect='auto', vmax=vlim[1])
+    if reward_zone is not None:
+        c_ax.vlines(reward_zone[:, 0]/10, 0,
+                    dff_toplot.shape[0],
+                    colors='white', linewidth=0.5)
+    if sort_by == 'dff':
+        c_ax.set_ylabel('cell #, ch1 sorted')
+    elif sort_by == 'dff2':
+        c_ax.set_ylabel('cell #, ch2 sorted')
+
+    c_ax.set_xlabel('position (10 cm bin)')
+    c_ax.set_title('ch1 dF/F')
+    axes.Axes.set_ylim(c_ax, bottom=dff_toplot.shape[0])
+    if plot_colorbar:
+        fig.colorbar(c_plot, ax=c_ax, panchor=(0.5, 0.0))
+
+    d_plot = d_ax.imshow(dff2_toplot, cmap='viridis',
+                         aspect='auto', vmax=vlim[1])
+    if reward_zone is not None:
+        d_ax.vlines(reward_zone[:, 0]/10, 0,
+                    dff2_toplot.shape[0], colors='white', linewidth=0.5)
+
+    d_ax.set_xlabel('position (10 cm bin)')
+    d_ax.set_title('ch2 dF/F')
+    axes.Axes.set_ylim(d_ax, bottom=dff2_toplot.shape[0])
+    if plot_colorbar:
+        fig.colorbar(d_plot, ax=d_ax, panchor=(0.5, 0.0))
+
+    fig.patch.set_facecolor('white')
+
+    return fig, ax
+
 
 def plot_sequences(_multiDayData,
                    celltype='rr',
                    daylist=None,
                    manual_cell_ids=None,
                    smooth=False,
+                   use_peaks=True,
+                   use_circ_mean=False,
                    plot=False,
                    save_figures=False,
                    fig_dir=None,
@@ -739,6 +1205,7 @@ def plot_sequences(_multiDayData,
 
     import phase_precession.core as ppcore
     import seaborn as sns
+    import astropy
 
     # run fig params so we don't lose tickmarks
     pt.set_fig_params(fontsize=12)
@@ -749,8 +1216,10 @@ def plot_sequences(_multiDayData,
         fig_tag = fig_tag + "_noEndCells"
 
     if (fig_dir is None) and save_figures:
-        from reward_relative.path_dict_firebird import path_dictionary as path_dict
+        from InVivoDA_analyses.path_dict_firebird import path_dictionary as path_dict
         fig_dir = ut.make_fig_dir(path_dict)
+
+    # circ_bin_size = 2*np.pi/(450/10)
 
     if daylist is None:
         daylist = _multiDayData.keys()
@@ -796,10 +1265,12 @@ def plot_sequences(_multiDayData,
                     max_pos = _multiDayData[d].activity_matrix[an][-2][-1]
                     min_pos = _multiDayData[d].activity_matrix[an][-2][0]
                 else:
-                    max_pos = _multiDayData[d].pos[an][-1] + \
-                        np.mean(np.diff(_multiDayData[d].pos[an]))/2
-                    min_pos = _multiDayData[d].pos[an][0] - \
-                        np.mean(np.diff(_multiDayData[d].pos[an]))/2
+                    max_pos = _multiDayData[d].pos_bin_centers[an][-1] + \
+                        np.mean(
+                            np.diff(_multiDayData[d].pos_bin_centers[an]))/2
+                    min_pos = _multiDayData[d].pos_bin_centers[an][0] - \
+                        np.mean(
+                            np.diff(_multiDayData[d].pos_bin_centers[an]))/2
 
                 # find the mean of the session per cell for normalization
                 norm_per_cell = np.nanmean(np.nanmean(
@@ -821,7 +1292,6 @@ def plot_sequences(_multiDayData,
                     elif celltype == 'stable':
                         keep = np.where(
                             _multiDayData[d].cell_class[an]['masks']['stable'])[0]
-                    elif celltype == 'appear':
                         keep = np.where(
                             _multiDayData[d].cell_class[an]['masks']['appear'])[0]
                     elif celltype == 'disappear':
@@ -843,7 +1313,7 @@ def plot_sequences(_multiDayData,
                             keep, _multiDayData[d].reward_rel_cell_ids[an])]
 
                 if exc_end_cells:
-                    pos = _multiDayData[d].pos[an]
+                    pos = _multiDayData[d].pos_bin_centers[an]
                     print(
                         'excluding end cells assuming first and last bin are the ends')
                     end_cells = np.logical_or(
@@ -862,7 +1332,7 @@ def plot_sequences(_multiDayData,
 
                 # ind in list of place cell inds (and rel peaks) matching this celltype
                 ind = ut.lookup_ind_exact(keep,
-                                          np.where(_multiDayData[d].keep_masks[an])[0])
+                                          np.where(_multiDayData[d].overall_place_cell_masks[an])[0])
                 # get rid of nans first
                 ind = ind[~np.isnan(ind)].astype(int)
 
@@ -884,6 +1354,19 @@ def plot_sequences(_multiDayData,
                                       axis=0)
                     map1 = np.nanmean(mat1,
                                       axis=0)
+
+                # option to use the circular mean of the firing instead of the peak to sort
+                if use_circ_mean:
+                    weights0 = map0 - \
+                        np.nanmin(map0, axis=0) + 0.001  # nonnegative
+                    weights1 = map1 - \
+                        np.nanmin(map1, axis=0) + 0.001  # nonnegative
+                    circ_mean0_orig = np.asarray([astropy.stats.circstats.circmean(
+                        tm_bin_centers, weights=weights0[:, c])
+                        for c in range(map0.shape[1])])
+                    circ_mean1_orig = np.asarray([astropy.stats.circstats.circmean(
+                        tm_bin_centers, weights=weights1[:, c])
+                        for c in range(map1.shape[1])])
 
                 if map0.shape[1] < 2:  # if there is only 1 cell
                     sorted_map0 = map0
@@ -950,8 +1433,12 @@ def plot_sequences(_multiDayData,
                                                 np.squeeze(perm_ids[ref_sort])]
                         pos1_perm = ut.nanargmax(sorted_map1_perm, axis=0)
 
-                        cc_rho_perm[n], _, _ = ppcore.corr_cc(
-                            tm_bin_centers[pos0], tm_bin_centers[pos1_perm])
+                        if use_circ_mean:
+                            cc_rho_perm[n], _, _ = ppcore.corr_cc(
+                                circ_mean0, circ_mean1_orig[perm_ids[ref_sort]])
+                        else:
+                            cc_rho_perm[n], _, _ = ppcore.corr_cc(
+                                tm_bin_centers[pos0], tm_bin_centers[pos1_perm])
 
                     # peak positions in sequence
                     seq[d][an]['seq0'] = tm_bin_centers[pos0]
@@ -968,8 +1455,16 @@ def plot_sequences(_multiDayData,
                     seq[d][an]['cc p perm'] = (np.sum(
                         np.abs(seq[d][an]['cc rho perm']) >= np.abs(seq[d][an]['cc rho'])) + 1) / (nperms + 1)
 
+                    # normalize to the maximum of the trial-averaged spatially-binned activity across the whole session,
+                    # for each cell (for visualization only)
+                    # max_before = np.nanmax(sorted_map0, axis=0, keepdims=True)
+                    # stack_maps = np.concatenate([sorted_map0[:,:,np.newaxis], sorted_map1[:,:,np.newaxis]], axis=2)
+                    # # max_per_cell = np.nanmax(np.nanmax(stack_maps, axis=2), axis=0, keepdims=True)
+                    # mean_per_cell = np.nanmean(np.nanmean(stack_maps, axis=2), axis=0, keepdims=True)
+                    # sorted_map0 = sorted_map0 / mean_per_cell
+                    # sorted_map1 = sorted_map1 / mean_per_cell
 
-                    # normalize each cell to its own mean (for visualization)
+                    # normalize each cell to its own mean
                     sorted_map0 = sorted_map0 / \
                         norm_per_cell[:, ref_sort]  # ref_norm #
                     sorted_map1 = sorted_map1 / \
