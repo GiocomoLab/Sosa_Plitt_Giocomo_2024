@@ -8,6 +8,7 @@ config = {
     "version": "0.0.1",
     "url": "https://github.com/GiocomoLab/Sosa_et_al_2024",
     "dependency_links": ["git+https://github.com/GiocomoLab/TwoPUtils"],
+    "package_dir":{"":"src"},
     "packages": find_packages(),
     "scripts": [],
     "install_requires": [],
