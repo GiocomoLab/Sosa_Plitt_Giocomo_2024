@@ -1,17 +1,17 @@
 import os
 import numpy as np
 import scipy as sp
-import pickle
+import dill
 import warnings
 import math
 from datetime import datetime
 
-from spatial import calc_place_cells
-
 from . import behavior as behav
 from . import preprocessing as pp
+from . import spatial
+from . import sessions_dict
 
-from sessions_dict import single_plane, multi_plane
+from reward_relative.sessions_dict import single_plane, multi_plane
 
 all_sess = single_plane
 all_sess.update(multi_plane)
@@ -74,7 +74,7 @@ def write_sess_pickle(sess, sess_dir, pkl_name, overwrite=False):
 
     if overwrite:
         save_sess = open(os.path.join(sess_dir, pkl_name), "wb")
-        pickle.dump(sess, save_sess)
+        dill.dump(sess, save_sess)
     else:
         if os.path.exists(os.path.join(sess_dir, pkl_name)):
             raise NotImplementedError(
@@ -82,7 +82,7 @@ def write_sess_pickle(sess, sess_dir, pkl_name, overwrite=False):
             )
         else:
             save_sess = open(os.path.join(sess_dir, pkl_name), "wb")
-            pickle.dump(sess, save_sess)
+            dill.dump(sess, save_sess)
             # Close the pickle
     save_sess.close()
 
@@ -105,7 +105,7 @@ def load_sess_pickle(basedir, animal, day=None, exp_day=None):
     pkl_path = get_sess_pkl_path(basedir, animal, day=day, exp_day=exp_day)
     print(pkl_path)
 
-    sess = pickle.load(open(pkl_path, "rb"))
+    sess = dill.load(open(pkl_path, "rb"))
 
     return sess
 
@@ -151,7 +151,7 @@ def quick_load_multi_anim_sess(day, experiment='MetaLearn', anim_list=None, para
                            )
                             #('%s_expday%d_speed%s_perms%d%s.pickle' % (max_anim_tag,exp_day,spd,perms,shuffle_tag)))
     print(pkl_path)
-    all_anim = pickle.load(open(pkl_path,"rb"))
+    all_anim = dill.load(open(pkl_path,"rb"))
     
     return all_anim
 
@@ -849,7 +849,7 @@ def multi_anim_sess(
             )
             sess.add_pos_binned_trial_matrix("spks_norm", "pos")
 
-        isreward, morph, dream = behav.get_trial_types(sess)
+        isreward, morph = behav.get_trial_types(sess)
         reward_zone, rz_label = behav.get_reward_zones(sess)
 
         trial_dict = behav.define_trial_subsets(sess, force_two_sets=trial_subsets)
@@ -866,7 +866,7 @@ def multi_anim_sess(
             else:
                 speed = None
 
-            pc_out = calc_place_cells(
+            pc_out = spatial.calc_place_cells(
                 sess,
                 ts_key=ts_key,
                 trial_subsets=trial_subsets,
@@ -908,7 +908,6 @@ def multi_anim_sess(
             "SI perms set1": pc_out["SI perms1"],
             "isreward": isreward,
             "morph": morph,
-            "dream": dream,
             "rzone": reward_zone,
             "rz label": rz_label,
             "trial dict": trial_dict,

@@ -9,13 +9,14 @@ import scipy as sp
 import pandas as pd
 import copy
 from sklearn.impute import KNNImputer
-from InVivoDA_analyses import utilities as ut
-from InVivoDA_analyses import behavior as behav
-from InVivoDA_analyses import spatial
-from InVivoDA_analyses import circ
-from InVivoDA_analyses import xcorr as xc
+from . import utilities as ut
+from . import behavior as behav
+from . import spatial
+from . import circ
+from . import xcorr as xc
 import TwoPUtils
 import astropy
+from astropy import stats
 
 import dask
 from dask.diagnostics import ProgressBar
@@ -1438,7 +1439,7 @@ def plot_rew_rel_hist_across_an(multiDayData,
     """
     from matplotlib import pyplot as plt
     from matplotlib.ticker import MaxNLocator
-    from InVivoDA_analyses import plotUtils as pt
+    from . import plotUtils as pt
     from pycircstat import tests as circ_tests
     from pycircstat.descriptive import median as circ_median
 
@@ -1552,7 +1553,7 @@ def plot_rew_rel_hist_across_an(multiDayData,
         ax1[d_i, 0].set_ylabel('fraction of cells')
         ax1[d_i, 0].legend()
 
-        ax1[d_i, 1].fill_betweenx([0, 0.02], [0, 0], [rzone, rzone],
+        ax1[d_i, 1].fill_betweenx([0, 0.05], [0, 0], [rzone, rzone],
                                   color=(0, 0.8, 1, 0.3))
 
         hist_unity, _ = np.histogram(use_dist_along_unity,
@@ -1711,7 +1712,7 @@ def plot_rew_rel_hist_indiv_an(multiDayData,
     For INDIVIDUAL animals
     """
     from matplotlib import pyplot as plt
-    from InVivoDA_analyses import plotUtils as pt
+    from . import plotUtils as pt
 
     exp_days = multiDayData.keys()
     max_include_ans = sorted(

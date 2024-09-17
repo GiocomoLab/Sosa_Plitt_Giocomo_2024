@@ -8,7 +8,7 @@ import warnings
 
 import TwoPUtils
 
-from . import utilities as ut
+from reward_relative import utilities as ut
 from . import plotUtils as pt
 
 reward_zone_dict = {'A': [175, 225],

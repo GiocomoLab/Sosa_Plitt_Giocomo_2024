@@ -3,7 +3,7 @@ import dill
 from tqdm import tqdm
 
 import TwoPUtils as tpu
-import reward_relative as da
+import reward_relative as rrel
 import os
 
 
@@ -44,8 +44,8 @@ def single_mouse_aligner(pkl_path, mouse, sessions, save=True, **kwargs):
 
 
 if __name__ == "__main__":
-    for mouse, sessions in da.sessions_dict.single_plane.items():
-        single_mouse_aligner(mouse, da.sessions_dict.single_plane[mouse])
+    for mouse, sessions in rrel.sessions_dict.single_plane.items():
+        single_mouse_aligner(mouse, rrel.sessions_dict.single_plane[mouse])
 
 
 def run_aligner(pkl_path,sess_dict):

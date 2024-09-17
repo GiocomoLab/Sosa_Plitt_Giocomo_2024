@@ -8,11 +8,9 @@ from matplotlib import pyplot as plt
 
 import TwoPUtils as tpu
 
-from InVivoDA_analyses import behavior as behav
-from . import behavior
+from . import behavior as behav
 from . import utilities as ut
 from . import circ
-# import TwoPUtils
 
 
 def place_cell_p(cell, shuffled, direction="higher"):

@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression as linreg
 import TwoPUtils
 import TwoPUtils.utilities as u
 from TwoPUtils.utilities import nansmooth
-from reward_relative import utilities as ut
+from . import utilities as ut
 
 # from suite2p.io.binary import BinaryFile
 from suite2p.extraction import dcnv
@@ -127,7 +127,7 @@ def create_sess(basedir, scandir, vrdir, animal, date, scene, session, scan_numb
 def append_session_data(sess, scaninfo=False, VR=False, suite2p=False, behavior=False,
                         **trial_matrix_kwargs):
     """
-    complete the session class with data relevant to InVivoDA analysis
+    complete the session class with relevant data
     - assumes the session class has already been created by TwoPUtils
 
     assign datatypes as True to append

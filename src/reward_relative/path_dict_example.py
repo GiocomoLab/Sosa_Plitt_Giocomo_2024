@@ -17,7 +17,7 @@ import os
 ###  LOCAL  ###
 HOME = os.path.expanduser("~")
 
-DATA_ROOT = os.path.join("/opt","data","2p","project")  # parent path to data
+DATA_ROOT = os.path.join("/data","2p","project")  # parent path to data
 PP_ROOT = DATA_ROOT # path to preprocessed data
 SBX_ROOT = os.path.join("/mnt","remote","user","2P_Data") # scanbox data path, if different from preprocessed data path
 

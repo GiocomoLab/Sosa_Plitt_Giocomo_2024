@@ -1216,7 +1216,7 @@ def plot_sequences(_multiDayData,
         fig_tag = fig_tag + "_noEndCells"
 
     if (fig_dir is None) and save_figures:
-        from InVivoDA_analyses.path_dict_firebird import path_dictionary as path_dict
+        from reward_relative.path_dict_firebird import path_dictionary as path_dict
         fig_dir = ut.make_fig_dir(path_dict)
 
     # circ_bin_size = 2*np.pi/(450/10)
