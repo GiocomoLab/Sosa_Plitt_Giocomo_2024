@@ -4,14 +4,14 @@ by Mari Sosa with contributions from Mark Plitt and the resources listed below.
 
 [System requirements](#System-Requirements)  \
 [Environments](#Environment-set-up)  \
-[Pip install repo dependencies](#Pip-install-dependencies)  \
+[Pip install repo dependencies](#Clone-and-pip-install-dependencies)  \
 [Path dictionary](#Path-dictionary)  \
 [Data organization](#Data-organization)  \
 [Pre-processing guide](#Preprocessing-guide)
 
 ## System Requirements
 ### Hardware requirements
-* At least 64 GB RAM recommended to load and analyze pre-processed 2P data structures across all animals and days
+* At least 32 GB required, 64 GB RAM strongly recommended to load and analyze pre-processed 2P data structures across all animals and days
 * For running the GLM, a GPU is required for fastest performance.
     * Tested on NVIDIA EVGA GeForce RTX 3080, Cuda 11.6
 
