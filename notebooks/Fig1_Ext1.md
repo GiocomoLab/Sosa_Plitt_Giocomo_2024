@@ -17,6 +17,8 @@ jupyter:
 
 Requires a pre-saved `sess` class for each animal and day (each session)
 
+Expected run time: ~10 minutes or less
+
 ```python
 import math
 import dill

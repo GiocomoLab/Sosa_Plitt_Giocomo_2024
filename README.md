@@ -7,7 +7,8 @@ by Mari Sosa with contributions from Mark Plitt and the resources listed below.
 [Pip install repo dependencies](#Clone-and-pip-install-dependencies)  \
 [Path dictionary](#Path-dictionary)  \
 [Data organization](#Data-organization)  \
-[Pre-processing guide](#Preprocessing-guide)
+[Pre-processing guide](#Preprocessing-guide)  \
+[Note about stochastic results](#A-note-about-stochasticity-in-exact-results)
 
 ## System Requirements
 ### Hardware requirements
@@ -22,6 +23,9 @@ Tested on:
 * Python 3.8.5 (via conda, see below)
 
 ## Installation
+
+Expected installation time: ~30 minutes, depending on speed of virtual environment set-up with conda.
+
 ### Environment set-up
 * tested on anaconda version 2020.11, conda 4.10.3
 * to check these, use `conda --version` and `conda list anaconda$`
@@ -155,3 +159,12 @@ jupytext --set-formats ipynb,md --sync notebook.ipynb
 ```
 jupytext --set-formats ipynb,md --sync notebook.md
 ```
+
+
+## A note about stochasticity in exact results
+
+Many of our computations, including thresholds for classifying individual cells, rely on shuffles or other randomized functions. For instance, when determining which cells are place cells, we compare the spatial information of each cell to the distribution of spatial information scores within the animal resulting from 100 shuffles per cell of position relative to neural activity. Since the shuffle is randomly generated each time the code is run, there will always be +/- a few cells that pass as place cells/not place cells each time, for the cells that have borderline significant spatial information (consider the case where a cell has p=0.04 on one run of the shuffle and p=0.05 on another run). A similar type of shuffle criterion is used to define reward-relative cells. 
+
+This results in some stochasticity, such that if a user runs the whole pipeline from raw or early-level pre-processed data to plotting figures, they will not necessarily generate the __exact__ same plot that is in the paper. Importantly, however, the overall result should be the same, just perhaps with a slightly different n of included cells or slightly different p-value (but same order of magnitude) from the result reported in the paper, as the paper results came from a particular iteration of all of these randomized computations. We view this as a positive scientifically, because population-level results do not depend on the inclusion or exclusion of a handful of cells. 
+
+To replicate the plots exactly as they are in the paper, the post-processed version of the data used for the manuscript will be provided. 

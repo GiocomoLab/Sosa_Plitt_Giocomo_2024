@@ -745,14 +745,13 @@ def multi_anim_sess(
             
 
         if calc_dff:
-            # currently not set up for multiplane
             if len(sess.timeseries["F"].shape) == 3:
                 raise NotImplementedError(
                     "Not configured for downsampled F without cells"
                 )
 
             if sess.scan_info["nChan"] > 1:
-                # Get df/F
+                # Get df/F if dual channel
                 print("Assigning red as 'F', green as 'F_chan2'")
                 F_r = sess.timeseries["F"]
                 F_g = sess.timeseries["F_chan2"]
@@ -842,12 +841,12 @@ def multi_anim_sess(
 
                 sess.add_timeseries(dff=dFF)
                 sess.add_pos_binned_trial_matrix("dff", "pos")
-            sess.add_pos_binned_trial_matrix("spks", "pos")
-            sess.add_timeseries(
-                spks_norm=sess.timeseries["spks"]
-                          / np.nanpercentile(sess.timeseries["spks"], 99, axis=1, keepdims=True)
-            )
-            sess.add_pos_binned_trial_matrix("spks_norm", "pos")
+            # sess.add_pos_binned_trial_matrix("spks", "pos")
+            # sess.add_timeseries(
+            #     spks_norm=sess.timeseries["spks"]
+            #               / np.nanpercentile(sess.timeseries["spks"], 99, axis=1, keepdims=True)
+            # )
+            # sess.add_pos_binned_trial_matrix("spks_norm", "pos")
 
         isreward, morph = behav.get_trial_types(sess)
         reward_zone, rz_label = behav.get_reward_zones(sess)
