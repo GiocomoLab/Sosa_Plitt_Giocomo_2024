@@ -135,35 +135,99 @@ def load_multi_anim_sess(path_dict, exp_day, an_list,
 class dayData:
 
     """
-    Class holding an individual experinent-day's data
+    Class holding an individual experiment-day's data
     for multiple animals
 
-    TO-DO: finish updating docstring
+    Attributes:
+ 
+    anim_list: list of mouse IDs included in this day
+    experiment: experiment name ('MetaLearn')
+    place_cell_logical: 'or' -- cells were classified as place cells by having 
+        significant spatial information in the trials before OR after the reward switch
+    force_two_sets: True -- trials were split into "set 0" for "before" the 
+        reward switch, and "set 1" for after the reward switch. In animals without a reward switch, 
+        "set 0" and "set 1" correspond to the 1st and 2nd half of trials, respectively
+    ts_key: 'dff' -- timeseries data type (dF/F) used to find place cell peaks
+    use_speed_thr: True -- whether a running speed threshold was used to quantify neural activity
+    speed_thr: 2 -- the speed threshold used, in cm/s
+    exclude_int: True -- whether putative interneurons were excluded from analyses
+    int_thresh: 0.5 -- speed correlation threshold to identify putative interneurons
+    int_method: 'speed' -- method of finding putative interneurons
+    reward_dist_exclusive: 50 -- distance in cm to exclude cells "near" reward
+    reward_dist_inclusive: 50 -- distance in cm to include cells as "near" reward
+    reward_overrep_dist: 25 -- distance in cm for population-level quantification of reward over-representation
+    activity_criterion: False -- optional additional place cell criterion based on fraction of trials active
+    bin_size: 10 -- linear bin size (cm) for quantifying spatial activity
+    sigma: 1 -- Gaussian s.d. in bins for smoothing
+    smooth: False -- whether to smooth for finding place cell peaks
+    impute_NaNs: True -- whether to impute NaN bins in spatial activity matrices
+    sim_method: 'correlation' -- trial-by-trial similarity matrix method: 'cosine_sim' or 'correlation'
+    lick_correction_thr: 0.35 -- threshold to detect capacitive sensor errors and set trial licking to NaN
+    is_switch: whether each animal had a reward switch
+    anim_tag: string of animal ID numbers
+    trial_dict: dictionary of booleans identified each trial as in "set 0" or "set 1"
+    rzone_pos: [start, stop] position of each reward zone (cm)
+    rzone_by_trial: same as above but for each trial
+    rzone_label: label of each reward zone (e.g. 'A')
+    blocks: 10-trial blocks within each trial set
+    activity_matrix: spatially-binned activity of type ts_key, trials x position bins x neurons 
+    events: original spatially-binned deconvolved events, trials x position bins x neurons (no speed threshold applied)
+    place_cell_masks: booleans of length cells identifying which cells are place cells in each trial set
+    SI: spatial information for each cell in each trial set
+    overall_place_cell_masks: boolean of length cells identifying which cells are place cells according to place_cell_logical
+    peaks: spatial bin center of peak activity for each cell in each trial set
+    field_dict: dictionary of place field properties for each cell
+    plane_per_cell: imaging plane of each cell (all zeros if only a single plane was imaged, 
+        otherwise 0 or 1 if two planes were imaged)
+    is_int: boolean, whether each cell is a putative interneuron
+    is_reward_cell: boolean, whether each cell has a peak within 50 cm of both reward zone starts
+    is_end_cell: boolean, whether each cell has a peak in the first or last spatial bin of the track
+    is_track_cell: boolean, whether each cell's peak stays within 50 cm of itself from trial set 0 to trial set 1
+    pc_distr: binned distribution of place cell peaks along the track
+    rew_frac: fraction of place cells with a peak within reward_overrep_dist of the reward zone start
+    rate_map: mean deconvolved activity across the population of cells in each spatial bin
+    pv_sim_mean: mean of the population vector similarity matrix in each trial block
+    sim_to_set0: similarity of the population vector in each block to its activity in set 0
+    sim_mat: trial-by-trial similarity matrix for place cells, licking, and speed
+    curr_zone_lickrate: lickrate in the current reward zone by trial
+    other_zone_lickrate: lickrate in the non-active/previous reward zone by trial
+    curr_vs_other_lickratio: ratio of lickrate in the current reward zone vs. the other reward zone
+    in_vs_out_lickratio: ratio of lickrate in the anticipatory zone vs. everywhere outside the anticipatory and reward zones
+    lickpos_std: standard deviation of licking position
+    lickpos_com: center of mass of licking position
+    lick_mat: matrix of lick rate in each spatial bin by trial
+    def_block_by: how to define trial blocks
+    cell_class: dictionary containing booleans of which cells have remapping types classified
+        as "track-relative", "disappear", "appear", "reward", or "nonreward_remap" 
+        (see spatial.get_cell_classes)
+    pos_bin_centers: position bin centers
+    dist_btwn_rel_null: distance between spatial firing peaks before the switch 
+        and the "random remapping" shuffle after the switch (radians)
+    dist_btwn_rel_peaks: distance between spatial firing peaks before vs. after the switch (radians)
+    reward_rel_cell_ids: integer cell indices that were identified as reward-relative after application of all criteria
+    xcorr_above_shuf: lag, in spatial bins, of the above-shuffle maximum of the 
+        cross-correlation used to confirm cells as reward-relative (computed for all cells; 
+        NaNs indicate that the xcorr did not exceed shuffle)
+    reward_rel_dist_along_unity: circular mean of pre-switch and post-switch spatial
+         firing peak position relative to reward (radians)
+    rel_peaks: spatial firing peak position relative to reward in each trial set (radians)
+    rel_null: spatial firing peak position relative to reward, for the random-remapping shuffle post-switch (radians)
+    circ_licks: spatially-binned licking, 
+        in circular coordinates relative to reward (trials x position bins) 
+    circ_speed: spatially-binned speed, 
+        in circular coordinates relative to reward (trials x position bins) 
+    circ_map: mean spatially-binned neural activity within each trial set, of type ts_key, 
+        in circular coordinates relative to reward
+    circ_trial_matrix: spatially-binned neural activity of type ts_key, 
+        in circular coordinates relative to reward (trials x position bins x neurons) 
+    circ_rel_stats_across_an: metadata across the "switch" animals:
+            'include_ans': list of "switch" animal names 
+            'rdist_to_rad_inc': reward_dist_inclusive converted to radians
+            'rdist_to_rad_exc': reward_dist_inclusive converted to radians
+            'min_pos': minimum position bin used
+            'max_pos': maximum position bin used
+            'hist_bin_centers': bin centers used for spatial binning
 
-    Used kwargs:
-    exclude_end_cells = False
-    exclude_reward_cells = False
-    exclude_not_reward_cells = False
-    force_two_sets = True  # of trials
-    bin_size = 10  # for quantifying distribution of place field peak locations
-    sigma = 1  # for smoothing
-    smooth = False  # whether to smooth for finding place cell peaks
-    # (activity will be auto smoothed for everything else)
-    exclude_int = True  # exclude putative interneurons
-    int_thresh = 0.5
-    impute_NaNs = True
-
-    place_cell_logical = 'or'
-
-    # timeseries to use
-    ts_key = 'dff'  # to use for analysis, reward cell fractions, finding place cell peaks
-
-    # method of place map comparison across trials
-    method = 'correlation'  # 'cosine_sim' or 'correlation'
-
-    reward_overrep_dist = 25  # cm on either side of zone start
-    reward_dist_inclusive = 30
-    reward_dist_exclusive = 50
     """
 
     def __init__(self, an_list, multi_an_sess,
@@ -349,8 +413,8 @@ class dayData:
                            multi_an_sess, 
                            add_behavior=True, 
                            add_cell_classes=True,
-                            add_circ_relative_peaks=True,
-                            add_field_dict=True, **kwargs):
+                           add_circ_relative_peaks=True,
+                           add_field_dict=True, **kwargs):
         
         for an in an_list:
 
